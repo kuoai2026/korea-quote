@@ -13,6 +13,9 @@ const CALC_HEAD = ['營收', '毛利', '毛利率', '底價', '提醒'];
 const R_ = c => 'INDEX(' + c + ':' + c + ',ROW())';
 const MIN_ = "VLOOKUP(" + R_('C') + ",'規則'!A:C,2,FALSE)";
 const PCT_ = "VLOOKUP(" + R_('C') + ",'規則'!A:C,3,FALSE)";
+// O–P：韓元成本、匯率（每筆保留當時的匯率）
+const EXTRA_HEAD = ['韓元成本', '匯率'];
+const ALL_COLS = HEAD.length + 5 + EXTRA_HEAD.length;  // 16
 const CALC = [
   '=' + R_('F') + '*' + R_('G'),
   '=(' + R_('F') + '-' + R_('E') + ')*' + R_('G'),
@@ -25,7 +28,7 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   if (p.key !== KEY) return out_({ ok: false, error: '密碼錯誤' });
   const sh = sheet_();
-  return out_({ ok: true, items: readAll_(sh), sheetUrl: SpreadsheetApp.getActive().getUrl() });
+  return out_({ ok: true, items: readAll_(sh), rate: getRate_(), sheetUrl: SpreadsheetApp.getActive().getUrl() });
 }
 
 function doPost(e) {
@@ -37,9 +40,15 @@ function doPost(e) {
   try {
     const sh = sheet_();
     const it = body.item || {};
+    if (body.action === 'setRate') {
+      const r = Number(it.rate);
+      if (!(r >= 1)) return out_({ ok: false, error: '匯率格式錯誤' });
+      setRate_(r, it.by || '');
+      return out_({ ok: true, rate: getRate_() });
+    }
     if (body.action === 'add') {
       const id = it.id || Utilities.getUuid();
-      if (findRow_(sh, id) < 0) sh.appendRow(toRow_(Object.assign({}, it, { id: id })).concat(CALC));
+      if (findRow_(sh, id) < 0) sh.appendRow(toRow_(Object.assign({}, it, { id: id })).concat(CALC).concat(extra_(it)));
       return out_({ ok: true, id: id });
     }
     const row = findRow_(sh, String(it.id || ''));
@@ -47,6 +56,7 @@ function doPost(e) {
     if (body.action === 'update') {
       sh.getRange(row, 1, 1, HEAD.length).setValues([toRow_(it)]);
       sh.getRange(row, HEAD.length + 1, 1, CALC.length).setFormulas([CALC]);
+      sh.getRange(row, HEAD.length + CALC.length + 1, 1, EXTRA_HEAD.length).setValues([extra_(it)]);
       return out_({ ok: true });
     }
     if (body.action === 'delete') {
@@ -69,7 +79,35 @@ function sheet_() {
     sh.getRange('A:B').setNumberFormat('@');
     sh.getRange('I:I').setNumberFormat('@');
   }
+  if (!sh.getRange(1, HEAD.length + CALC.length + 1).getValue()) {
+    sh.getRange(1, HEAD.length + CALC.length + 1, 1, EXTRA_HEAD.length).setValues([EXTRA_HEAD]).setFontWeight('bold');
+  }
   return sh;
+}
+
+function extra_(it) {
+  return [Number(it.krw) || '', Number(it.rate) || ''];
+}
+
+// 匯率存在「總覽」E4:F7
+function rateCell_() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName('總覽') || ss.insertSheet('總覽');
+  if (sh.getRange('E4').getValue() !== '匯率設定') {
+    sh.getRange('E4:F7').setValues([['匯率設定', ''], ['1 台幣 = ? 韓元', 41.5], ['更新時間', ''], ['更新者', '']]);
+    sh.getRange('E4').setFontWeight('bold');
+    sh.getRange('F5').setFontColor('#0000FF');
+    sh.getRange('F6').setNumberFormat('@');
+  }
+  return sh;
+}
+function getRate_() {
+  const v = rateCell_().getRange('F5:F7').getValues();
+  return { rate: Number(v[0][0]) || 41.5, at: text_(v[1][0]), by: String(v[2][0] || '') };
+}
+function setRate_(r, by) {
+  const now = Utilities.formatDate(new Date(), 'Asia/Taipei', 'M/d HH:mm');
+  rateCell_().getRange('F5:F7').setValues([[r], [now], [by]]);
 }
 
 function toRow_(it) {
@@ -79,7 +117,7 @@ function toRow_(it) {
 }
 
 function text_(v) {
-  if (v instanceof Date) return Utilities.formatDate(v, 'Asia/Taipei', 'M/d');
+  if (Object.prototype.toString.call(v) === '[object Date]') return Utilities.formatDate(v, 'Asia/Taipei', 'M/d');
   return String(v == null ? '' : v);
 }
 
@@ -87,23 +125,22 @@ function text_(v) {
 function readAll_(sh) {
   const n = sh.getLastRow() - 1;
   if (n < 1) return [];
-  const range = sh.getRange(2, 1, n, HEAD.length);
-  const v = range.getValues();
-  let fixed = false;
+  const v = sh.getRange(2, 1, n, ALL_COLS).getValues();
   const items = [];
   v.forEach(function (r, i) {
     if (!r[3]) return;
     if (!r[0]) {  // 在試算表手動新增的列：補 id 和計算欄
-      r[0] = Utilities.getUuid(); fixed = true;
+      r[0] = Utilities.getUuid();
+      sh.getRange(i + 2, 1).setValue(r[0]);
       sh.getRange(i + 2, HEAD.length + 1, 1, CALC.length).setFormulas([CALC]);
     }
     items.push({
       id: String(r[0]), date: text_(r[1]), cat: String(r[2] || '其他小物'), name: String(r[3]),
       cost: Number(r[4]) || 0, quote: Number(r[5]) || 0, qty: Number(r[6]) || 0,
-      by: String(r[7] || ''), createdAt: text_(r[8])
+      by: String(r[7] || ''), createdAt: text_(r[8]),
+      krw: Number(r[14]) || 0, rate: Number(r[15]) || 0
     });
   });
-  if (fixed) range.setValues(v);
   return items;
 }
 

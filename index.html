@@ -135,6 +135,25 @@ dialog::backdrop{background:rgba(59,54,49,.38)}
 .danger{height:52px;padding:0 18px;border:0;border-radius:999px;background:var(--bad-bg);color:var(--bad);font-weight:700;font-size:14px}
 .danger.armed{background:var(--bad);color:#fff}
 .note{font-size:12px;color:var(--muted);line-height:1.7;margin:0}
+.ratebar{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--tint);border-radius:14px;padding:8px 8px 8px 14px;margin-bottom:-6px;font-size:12px;color:var(--muted)}
+.ratebar b{color:var(--ink);font-size:14px}
+.ratebar button{min-height:38px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--brand);font-weight:700;font-size:13px}
+.pre{position:relative}
+.pre i{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-style:normal;font-weight:700;color:var(--faint);font-size:15px;pointer-events:none}
+.pre .in{padding-left:36px}
+.pre.nt i{font-size:13px}
+.pre.nt .in{padding-left:46px}
+.subline{font-size:12px;font-weight:700;color:var(--brand);min-height:16px}
+.subline.mute{font-weight:400;color:var(--muted)}
+.rbox{background:var(--bg);border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.rrow{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+.rrow .in{flex:1;min-width:0;text-align:center;font-size:26px;font-weight:700;background:var(--card)}
+.rsteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.rsteps button{min-height:44px;border:0;border-radius:999px;background:var(--card);color:var(--brand);font-weight:700;font-size:14px}
+.conv{display:flex;flex-direction:column}
+.conv div{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid var(--bg);font-size:15px}
+.conv div:first-child{font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px dashed var(--line);padding-bottom:8px}
+.conv b{color:var(--brand)}
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--card);font-size:13px;padding:10px 18px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none;z-index:50;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%)}
 </style>
@@ -174,12 +193,15 @@ dialog::backdrop{background:rgba(59,54,49,.38)}
         <label class="lbl">品名
           <input class="in" id="fName" placeholder="例如：Torriden 玻尿酸精華 50ml" required>
         </label>
+        <div class="ratebar"><span>匯率　<b id="rateText">1 台幣 = 41.5 韓元</b></span><button type="button" id="openRate">修改</button></div>
         <div class="grid2">
-          <label class="lbl">成本
-            <input class="in num" id="fCost" inputmode="decimal" placeholder="0">
+          <label class="lbl">成本（韓元）
+            <span class="pre"><i>₩</i><input class="in num" id="fKrw" inputmode="numeric" placeholder="0"></span>
+            <span class="subline" id="costTwd"></span>
           </label>
-          <label class="lbl">報價
-            <input class="in num" id="fQuote" inputmode="decimal" placeholder="0">
+          <label class="lbl">報價（台幣）
+            <span class="pre nt"><i>NT$</i><input class="in num" id="fQuote" inputmode="decimal" placeholder="0"></span>
+            <span class="subline mute" id="unitGross"></span>
           </label>
         </div>
         <div class="hint" id="hint"></div>
@@ -243,8 +265,8 @@ dialog::backdrop{background:rgba(59,54,49,.38)}
     <div class="lbl">分類<div class="cats" id="eCats"></div></div>
     <label class="lbl">品名<input class="in" id="eName" required></label>
     <div class="grid2">
-      <label class="lbl">成本<input class="in num" id="eCost" inputmode="decimal"></label>
-      <label class="lbl">報價<input class="in num" id="eQuote" inputmode="decimal"></label>
+      <label class="lbl">成本（韓元）<span class="pre"><i>₩</i><input class="in num" id="eKrw" inputmode="numeric"></span><span class="subline" id="eCostTwd"></span></label>
+      <label class="lbl">報價（台幣）<span class="pre nt"><i>NT$</i><input class="in num" id="eQuote" inputmode="decimal"></span><span class="subline mute" id="eRateNote"></span></label>
     </div>
     <div class="hint" id="eHint"></div>
     <div class="qtyrow">
@@ -259,6 +281,24 @@ dialog::backdrop{background:rgba(59,54,49,.38)}
       <button type="button" class="danger" id="eDel">刪除</button>
       <button type="button" class="ghost" id="eCancel" style="height:52px">取消</button>
       <button type="button" class="primary" id="eSave">儲存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 匯率 -->
+<dialog id="rateDlg">
+  <form class="sheet" method="dialog">
+    <div class="grab"></div>
+    <div><h2>匯率設定</h2><p class="note">兩支手機共用，存在 Google 試算表「總覽」</p></div>
+    <div class="rbox">
+      <div class="rrow"><span>1 台幣 =</span><input class="in" id="rInput" inputmode="decimal"><span>韓元</span></div>
+      <div class="rsteps"><button type="button" data-d="-0.5">−0.5</button><button type="button" data-d="-0.1">−0.1</button><button type="button" data-d="0.1">+0.1</button><button type="button" data-d="0.5">+0.5</button></div>
+    </div>
+    <div class="conv" id="conv"></div>
+    <div><p class="note">修改後只影響之後新增的紀錄；已存的紀錄保留當時的匯率，不會跟著變。</p><p class="note" id="rateMeta" style="color:var(--faint)"></p></div>
+    <div class="btns">
+      <button type="button" class="ghost" id="rCancel" style="height:52px">取消</button>
+      <button type="button" class="primary" id="rSave">儲存匯率</button>
     </div>
   </form>
 </dialog>
@@ -294,6 +334,7 @@ const RULES = {
   '文創周邊':[100,25], '批發':[100,30], '其他小物':[100,20]
 };
 const REJECT_PCT = 10;
+const DEFAULT_RATE = 41.5;   // 1 台幣 = ? 韓元（試算表「總覽」可改，會覆蓋這個預設值）
 const COMBO_ONLY = ['食品零食'];
 /* ===================================== */
 
@@ -319,6 +360,11 @@ function normItem(x){
 let items = LS.get('kq_items', []).map(normItem);   // 已同步的資料（快取）
 let pending = LS.get('kq_pending', []);      // 尚未送出的動作 [{action,item}]
 let sheetUrl = LS.get('kq_sheet', '');
+let rateInfo = LS.get('kq_rate', { rate: DEFAULT_RATE, at: '', by: '' });
+const curRate = () => Number(rateInfo.rate) > 0 ? Number(rateInfo.rate) : DEFAULT_RATE;
+const toTwd = (krw, rate) => Math.round((krw || 0) / (rate || curRate()));
+const fmtRate = r => String(Math.round(r * 100) / 100);
+const fmtKrw = el => { const v = el.value.replace(/[^0-9]/g, ''); el.value = v ? Number(v).toLocaleString('en-US') : ''; };
 let state = { cat: LS.get('kq_cat', 'Olive Young'), flag: 'all', open: {}, allOpen: false };
 
 /* ---------- 規則 ---------- */
@@ -399,6 +445,7 @@ async function sync(){
     const j = await api('GET');
     items = (j.items || []).map(normItem); LS.set('kq_items', items);
     if (j.sheetUrl) { sheetUrl = j.sheetUrl; LS.set('kq_sheet', sheetUrl); }
+    if (j.rate && Number(j.rate.rate) > 0 && !pending.some(p => p.action === 'setRate')) { rateInfo = j.rate; LS.set('kq_rate', rateInfo); }
     const t = new Date();
     setSync(`已同步 · ${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`);
   } catch (e) {
@@ -431,8 +478,11 @@ function itemHtml(it, showCat){
 function renderForm(){
   catButtons($('cats'), state.cat, c => { state.cat = c; LS.set('kq_cat', c); renderForm(); });
   $('rule').textContent = ruleText(state.cat);
-  const cost = num($('fCost').value), quote = num($('fQuote').value), qty = Math.max(1, num($('fQty').value) || 1);
-  $('hint').innerHTML = hintHtml(state.cat, cost, quote);
+  const krw = num($('fKrw').value), cost = toTwd(krw), quote = num($('fQuote').value), qty = Math.max(1, num($('fQty').value) || 1);
+  $('rateText').textContent = `1 台幣 = ${fmtRate(curRate())} 韓元`;
+  $('costTwd').textContent = krw ? `≈ ${nt(cost)}` : '';
+  $('unitGross').textContent = quote && krw ? `每件毛利 ${nt(quote - cost)}` : '';
+  $('hint').innerHTML = hintHtml(state.cat, krw ? cost : 0, quote);
   $('subtotal').textContent = nt(quote * qty);
 }
 function render(){
@@ -486,19 +536,21 @@ function render(){
 }
 
 /* ---------- 事件：報價 ---------- */
-['fCost','fQuote','fQty'].forEach(id => $(id).addEventListener('input', renderForm));
+$('fKrw').addEventListener('input', e => { fmtKrw(e.target); renderForm(); });
+['fQuote','fQty'].forEach(id => $(id).addEventListener('input', renderForm));
 $('qMinus').onclick = () => { $('fQty').value = Math.max(1, (num($('fQty').value) || 1) - 1); renderForm(); };
 $('qPlus').onclick = () => { $('fQty').value = (num($('fQty').value) || 0) + 1; renderForm(); };
 $('form').addEventListener('submit', e => { e.preventDefault(); add(); });
 $('addBtn').onclick = add;
 function add(){
   const name = $('fName').value.trim();
-  const cost = num($('fCost').value), quote = num($('fQuote').value), qty = Math.max(1, Math.round(num($('fQty').value) || 1));
+  const krw = Math.round(num($('fKrw').value)), rate = curRate(), cost = toTwd(krw, rate), quote = num($('fQuote').value), qty = Math.max(1, Math.round(num($('fQty').value) || 1));
   if (!name) { toast('請先填品名'); $('fName').focus(); return; }
+  if (!krw) { toast('請先填韓元成本'); $('fKrw').focus(); return; }
   if (!quote) { toast('請先填報價'); $('fQuote').focus(); return; }
-  const item = { id: uid(), date: today(), cat: state.cat, name, cost, quote, qty, by: cfg.by || '', createdAt: new Date().toISOString() };
+  const item = { id: uid(), date: today(), cat: state.cat, name, cost, quote, qty, krw, rate, by: cfg.by || '', createdAt: new Date().toISOString() };
   queue('add', item);
-  $('fName').value = ''; $('fCost').value = ''; $('fQuote').value = ''; $('fQty').value = 1;
+  $('fName').value = ''; $('fKrw').value = ''; $('fQuote').value = ''; $('fQty').value = 1;
   renderForm();
   toast(cfg.url ? '已加入紀錄' : '已暫存在手機，連線後會自動上傳');
 }
@@ -529,28 +581,63 @@ $('recent').addEventListener('click', e => { const it = e.target.closest('.item'
 let editing = null;
 function renderEdit(){
   catButtons($('eCats'), editing.cat, c => { editing.cat = c; renderEdit(); });
-  $('eHint').innerHTML = hintHtml(editing.cat, num($('eCost').value), num($('eQuote').value));
+  const cost = toTwd(num($('eKrw').value), editing.rate);
+  $('eCostTwd').textContent = '≈ ' + nt(cost);
+  $('eRateNote').textContent = `這筆匯率 1 : ${fmtRate(editing.rate)}`;
+  $('eHint').innerHTML = hintHtml(editing.cat, cost, num($('eQuote').value));
 }
 function openEdit(id){
   const it = allItems().find(x => x.id === id); if (!it) return;
   editing = Object.assign({}, it); delete editing._pend;
-  $('eName').value = it.name; $('eCost').value = it.cost; $('eQuote').value = it.quote; $('eQty').value = it.qty;
+  editing.rate = Number(it.rate) > 0 ? Number(it.rate) : curRate();
+  editing.krw = Number(it.krw) > 0 ? Number(it.krw) : Math.round(it.cost * editing.rate);
+  $('eName').value = it.name; $('eKrw').value = editing.krw.toLocaleString('en-US'); $('eQuote').value = it.quote; $('eQty').value = it.qty;
   $('eDel').classList.remove('armed'); $('eDel').textContent = '刪除';
   renderEdit(); $('editDlg').showModal();
 }
-['eCost','eQuote'].forEach(id => $(id).addEventListener('input', renderEdit));
+$('eKrw').addEventListener('input', e => { fmtKrw(e.target); renderEdit(); });
+$('eQuote').addEventListener('input', renderEdit);
 $('eMinus').onclick = () => { $('eQty').value = Math.max(1, (num($('eQty').value) || 1) - 1); };
 $('ePlus').onclick = () => { $('eQty').value = (num($('eQty').value) || 0) + 1; };
 $('eCancel').onclick = () => $('editDlg').close();
 $('eSave').onclick = () => {
   const name = $('eName').value.trim(); if (!name) { toast('品名不能空白'); return; }
-  Object.assign(editing, { name, cost: num($('eCost').value), quote: num($('eQuote').value), qty: Math.max(1, Math.round(num($('eQty').value) || 1)) });
+  const krw = Math.round(num($('eKrw').value));
+  Object.assign(editing, { name, krw, cost: toTwd(krw, editing.rate), quote: num($('eQuote').value), qty: Math.max(1, Math.round(num($('eQty').value) || 1)) });
   queue('update', editing); $('editDlg').close(); toast('已更新');
 };
 $('eDel').onclick = () => {
   const b = $('eDel');
   if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = '確定刪除？'; return; }
   queue('delete', { id: editing.id }); $('editDlg').close(); toast('已刪除');
+};
+
+/* ---------- 匯率 ---------- */
+function renderRate(){
+  const r = num($('rInput').value);
+  $('conv').innerHTML = '<div><span>韓元</span><span>台幣</span></div>' +
+    [1000, 5000, 10000, 30000, 50000, 100000].map(a => `<div><span>₩${a.toLocaleString('en-US')}</span><b>${r ? nt(a / r) : '—'}</b></div>`).join('');
+}
+$('openRate').onclick = () => {
+  $('rInput').value = fmtRate(curRate());
+  $('rateMeta').textContent = rateInfo.at ? `上次更新：${rateInfo.at}${rateInfo.by ? ' · ' + rateInfo.by : ''}` : '目前是預設匯率 41.5';
+  renderRate(); $('rateDlg').showModal();
+};
+$('rInput').addEventListener('input', renderRate);
+document.querySelector('.rsteps').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('rInput').value = fmtRate(Math.max(1, (num($('rInput').value) || curRate()) + Number(b.dataset.d))); renderRate();
+};
+$('rCancel').onclick = () => $('rateDlg').close();
+$('rSave').onclick = () => {
+  const r = Math.round(num($('rInput').value) * 100) / 100;
+  if (!(r >= 1)) { toast('請輸入正確的匯率'); return; }
+  const d = new Date();
+  rateInfo = { rate: r, at: `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`, by: cfg.by || '' };
+  LS.set('kq_rate', rateInfo);
+  pending = pending.filter(p => p.action !== 'setRate');
+  queue('setRate', rateInfo);
+  $('rateDlg').close(); toast(`匯率已改為 1 : ${fmtRate(r)}`);
 };
 
 /* ---------- 設定 ---------- */
@@ -565,7 +652,7 @@ $('sSave').onclick = () => {
   cfg = { url: $('sUrl').value.trim(), key: $('sKey').value, by: $('sBy').value.trim() };
   LS.set('kq_cfg', cfg); $('setDlg').close(); sync();
 };
-[$('editDlg'), $('setDlg')].forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+[$('editDlg'), $('setDlg'), $('rateDlg')].forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
 
 /* ---------- 匯出 Excel ---------- */
 $('exportX').onclick = () => {
@@ -573,7 +660,7 @@ $('exportX').onclick = () => {
   const list = allItems().slice().sort((a, b) => CATS.indexOf(a.cat) - CATS.indexOf(b.cat) || String(a.createdAt).localeCompare(String(b.createdAt)));
   const rows = list.map(x => {
     const f = flagOf(x);
-    return { 日期: x.date, 分類: x.cat, 品名: x.name, 成本: x.cost, 報價: x.quote, 數量: x.qty,
+    return { 日期: x.date, 分類: x.cat, 品名: x.name, 韓元成本: x.krw || '', 匯率: x.rate || '', 成本: x.cost, 報價: x.quote, 數量: x.qty,
       營收: x.quote * x.qty, 毛利: (x.quote - x.cost) * x.qty, 毛利率: x.quote ? +((x.quote - x.cost) / x.quote * 100).toFixed(1) : 0,
       提醒: f.text, 填寫人: x.by || '' };
   });
