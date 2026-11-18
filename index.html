@@ -309,7 +309,14 @@ const today = () => { const d = new Date(); return (d.getMonth() + 1) + '/' + d.
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 
 let cfg = LS.get('kq_cfg', { url: '', key: '', by: '' });
-let items = LS.get('kq_items', []);          // 已同步的資料（快取）
+// 試算表可能把 11/18 自動轉成完整日期，這裡統一轉回「月/日」；建立時間轉回 ISO 方便排序
+function normItem(x){
+  const it = Object.assign({}, x);
+  if (it.date && !/^\d{1,2}\/\d{1,2}$/.test(it.date)) { const d = new Date(it.date); if (!isNaN(d)) it.date = (d.getMonth() + 1) + '/' + d.getDate(); }
+  if (it.createdAt && !/^\d{4}-\d{2}-\d{2}T/.test(it.createdAt)) { const d = new Date(it.createdAt); if (!isNaN(d)) it.createdAt = d.toISOString(); }
+  return it;
+}
+let items = LS.get('kq_items', []).map(normItem);   // 已同步的資料（快取）
 let pending = LS.get('kq_pending', []);      // 尚未送出的動作 [{action,item}]
 let sheetUrl = LS.get('kq_sheet', '');
 let state = { cat: LS.get('kq_cat', 'Olive Young'), flag: 'all', open: {}, allOpen: false };
@@ -390,7 +397,7 @@ async function sync(){
       pending.shift(); LS.set('kq_pending', pending);
     }
     const j = await api('GET');
-    items = j.items || []; LS.set('kq_items', items);
+    items = (j.items || []).map(normItem); LS.set('kq_items', items);
     if (j.sheetUrl) { sheetUrl = j.sheetUrl; LS.set('kq_sheet', sheetUrl); }
     const t = new Date();
     setSync(`已同步 · ${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`);
@@ -413,7 +420,7 @@ function catButtons(el, current, onPick){
 }
 function itemHtml(it, showCat){
   const f = flagOf(it);
-  const meta = [showCat ? it.cat : it.date, '成本 ' + nt(it.cost), '×' + it.qty].concat(it.by ? [it.by] : []).join(' · ');
+  const meta = [it.date, it.by].filter(Boolean).join(' · ');
   return `<button type="button" class="item" data-id="${esc(it.id)}">
     <span class="l"><b>${esc(it.name)}</b><small>${esc(meta)}</small>
       ${f.level === 'warn' || f.level === 'bad' ? `<span class="tag ${f.level}">${esc(f.text)}</span>` : ''}
