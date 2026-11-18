@@ -7,7 +7,19 @@
 const KEY = '請改成你們的密碼';
 
 const SHEET_NAME = '紀錄';
-const HEAD = ['id', '日期', '分類', '品名', '成本', '報價', '數量', '填寫人', '建立時間'];
+const HEAD = ['id', '日期', '分類', '品名', '成本', '報價', '數量', '填寫人', '建立時間'];  // A–I：網站寫入
+// J–N：自動計算（不要手動改）。用 INDEX(…,ROW()) 寫法，刪列、插列都不會錯位
+const CALC_HEAD = ['營收', '毛利', '毛利率', '底價', '提醒'];
+const R_ = c => 'INDEX(' + c + ':' + c + ',ROW())';
+const MIN_ = "VLOOKUP(" + R_('C') + ",'規則'!A:C,2,FALSE)";
+const PCT_ = "VLOOKUP(" + R_('C') + ",'規則'!A:C,3,FALSE)";
+const CALC = [
+  '=' + R_('F') + '*' + R_('G'),
+  '=(' + R_('F') + '-' + R_('E') + ')*' + R_('G'),
+  '=IFERROR((' + R_('F') + '-' + R_('E') + ')/' + R_('F') + ',0)',
+  '=IFERROR(CEILING(MAX(' + R_('E') + '+' + MIN_ + ',IF(' + PCT_ + '>0,' + R_('E') + '/(1-' + PCT_ + '),0)),5),"")',
+  '=IF(' + R_('F') + '=0,"",IF(' + R_('L') + "<'規則'!$F$2,\"建議不接\",IF(AND(ISNUMBER(" + R_('M') + '),' + R_('F') + '<' + R_('M') + '),"低於底線","")))'
+];
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
@@ -27,13 +39,14 @@ function doPost(e) {
     const it = body.item || {};
     if (body.action === 'add') {
       const id = it.id || Utilities.getUuid();
-      if (findRow_(sh, id) < 0) sh.appendRow(toRow_(Object.assign({}, it, { id: id })));
+      if (findRow_(sh, id) < 0) sh.appendRow(toRow_(Object.assign({}, it, { id: id })).concat(CALC));
       return out_({ ok: true, id: id });
     }
     const row = findRow_(sh, String(it.id || ''));
     if (row < 0) return out_({ ok: false, error: '找不到這筆資料，可能已被刪除' });
     if (body.action === 'update') {
       sh.getRange(row, 1, 1, HEAD.length).setValues([toRow_(it)]);
+      sh.getRange(row, HEAD.length + 1, 1, CALC.length).setFormulas([CALC]);
       return out_({ ok: true });
     }
     if (body.action === 'delete') {
@@ -51,7 +64,7 @@ function sheet_() {
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
-    sh.getRange(1, 1, 1, HEAD.length).setValues([HEAD]).setFontWeight('bold');
+    sh.getRange(1, 1, 1, HEAD.length + CALC_HEAD.length).setValues([HEAD.concat(CALC_HEAD)]).setFontWeight('bold');
     sh.setFrozenRows(1);
     sh.getRange('A:B').setNumberFormat('@');
     sh.getRange('I:I').setNumberFormat('@');
@@ -78,9 +91,12 @@ function readAll_(sh) {
   const v = range.getValues();
   let fixed = false;
   const items = [];
-  v.forEach(function (r) {
+  v.forEach(function (r, i) {
     if (!r[3]) return;
-    if (!r[0]) { r[0] = Utilities.getUuid(); fixed = true; }
+    if (!r[0]) {  // 在試算表手動新增的列：補 id 和計算欄
+      r[0] = Utilities.getUuid(); fixed = true;
+      sh.getRange(i + 2, HEAD.length + 1, 1, CALC.length).setFormulas([CALC]);
+    }
     items.push({
       id: String(r[0]), date: text_(r[1]), cat: String(r[2] || '其他小物'), name: String(r[3]),
       cost: Number(r[4]) || 0, quote: Number(r[5]) || 0, qty: Number(r[6]) || 0,
