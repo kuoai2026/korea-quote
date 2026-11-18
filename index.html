@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3EEE7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="代購報價">
+<title>代購報價</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+:root{
+  --bg:#F3EEE7; --card:#FFFDF9; --field:#FAF6F0; --line:#E6DCCF; --soft:#E9E1D6; --tint:#F7F2EB;
+  --ink:#3B3631; --ink2:#4F4740; --muted:#7D746B; --faint:#A99C8E;
+  --brand:#7A5C43; --brand-dk:#5C4330;
+  --ok:#3E6B4E; --warn:#93570F; --warn-dot:#C98A2E; --warn-bg:#FBF1E2; --bad:#A8372A; --bad-dot:#C4473A; --bad-bg:#FBEAE6;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Nunito','Noto Sans TC',-apple-system,sans-serif;overflow-x:hidden}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{opacity:.78}
+.wrap{max-width:520px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+
+/* header */
+.top{position:sticky;top:0;z-index:5;background:rgba(243,238,231,.94);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:calc(14px + env(safe-area-inset-top)) 18px 12px;display:flex;flex-direction:column;gap:12px}
+.brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:40px;height:40px;border-radius:13px;background:var(--brand);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none}
+.brand h1{margin:0;font-size:19px;font-weight:700}
+.brand small{display:block;font-size:12px;color:var(--muted)}
+.iconbtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;flex:none}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--soft);padding:4px;border-radius:999px}
+.seg button{border:0;background:transparent;border-radius:999px;padding:10px 0;font-size:14px;color:#6E655C;min-height:42px}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:700;box-shadow:0 1px 3px rgba(59,54,49,.08)}
+.sync{font-size:11px;color:var(--muted);text-align:right;min-height:14px;margin-top:-4px}
+.sync.err{color:var(--bad)}
+
+main{flex:1;padding:4px 12px 0;display:flex;flex-direction:column;gap:12px}
+.view[hidden]{display:none}
+.view{display:flex;flex-direction:column;gap:12px}
+
+/* cards */
+.hero{background:var(--brand);color:var(--card);border-radius:22px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.hero .row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
+.hero .row b{font-size:13px}
+.bar{height:6px;border-radius:99px;background:rgba(255,253,249,.22);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--card);width:0;transition:width .4s}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stats span{display:block;font-size:11px;opacity:.8}
+.stats b{display:block;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.card{background:var(--card);border-radius:26px;padding:22px 18px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 2px rgba(59,54,49,.04),0 10px 28px rgba(122,92,67,.08)}
+.lbl{font-size:13px;font-weight:700;display:flex;flex-direction:column;gap:8px}
+.cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cats button{min-height:46px;padding:6px 4px;line-height:1.25;border:0;border-radius:999px;background:var(--bg);color:var(--ink2);font-size:13.5px}
+.cats button.on{background:var(--brand);color:var(--card);font-weight:700}
+.rule{font-size:12px;line-height:1.6;color:var(--muted);background:var(--tint);padding:8px 12px;border-radius:12px;font-weight:400}
+.in{width:100%;border:1px solid var(--line);background:var(--field);padding:14px 16px;border-radius:16px;font-size:16px;min-height:52px;font-weight:400}
+.in:focus{outline:none;border-color:var(--brand);background:#fff}
+.in.num{font-size:20px;font-weight:700;min-height:56px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hint{display:flex;flex-direction:column;gap:6px;min-height:40px;margin-top:-6px}
+.hint p{margin:0;font-size:12px;line-height:1.6;display:flex;gap:8px;align-items:baseline}
+.hint p::before{content:'';width:6px;height:6px;border-radius:99px;flex:none;transform:translateY(-1px);background:var(--faint)}
+.hint .info{color:#6E655C}
+.hint .ok{color:var(--ok)} .hint .ok::before{background:var(--ok)}
+.hint .warn{color:var(--warn)} .hint .warn::before{background:var(--warn-dot)}
+.hint .bad{color:var(--bad)} .hint .bad::before{background:var(--bad-dot)}
+.hint .extra{color:var(--muted);padding-left:14px} .hint .extra::before{display:none}
+.qtyrow{display:flex;justify-content:space-between;align-items:center}
+.stepper{display:flex;align-items:center;gap:4px;background:var(--bg);border-radius:999px;padding:4px}
+.stepper button{width:44px;height:44px;border:0;border-radius:999px;background:var(--card);color:var(--brand);font-size:20px;font-weight:700}
+.stepper input{width:48px;text-align:center;border:0;background:transparent;font-size:18px;font-weight:700;padding:0}
+.stepper input:focus{outline:none}
+
+.sechead{display:flex;justify-content:space-between;align-items:baseline;padding:8px 6px 0}
+.sechead b{font-size:14px}
+.sechead span{font-size:12px;color:var(--muted)}
+.item{width:100%;text-align:left;border:0;background:var(--card);border-radius:20px;padding:15px 18px;display:flex;justify-content:space-between;gap:12px}
+.item .l{display:flex;flex-direction:column;gap:3px;min-width:0}
+.item .l b{font-size:15px;font-weight:600;line-height:1.4;word-break:break-word}
+.item .l small{font-size:12px;color:var(--muted)}
+.item .r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;white-space:nowrap}
+.item .r b{font-size:15px}
+.item .r small{font-size:12px;color:var(--muted)}
+.tag{font-size:11px;padding:3px 8px;border-radius:99px;align-self:flex-start}
+.tag.warn{color:var(--warn);background:var(--warn-bg)}
+.tag.bad{color:var(--bad);background:var(--bad-bg)}
+.tag.pend{color:var(--muted);background:var(--tint)}
+.empty{background:var(--card);border-radius:20px;padding:28px 18px;text-align:center;font-size:14px;color:var(--muted);line-height:1.7}
+
+/* query */
+.search{position:relative}
+.search svg{position:absolute;left:16px;top:17px;pointer-events:none}
+.search .in{padding-left:44px;background:var(--card)}
+.flags{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.flags button{min-height:44px;border:0;border-radius:999px;background:var(--card);color:var(--ink2);font-size:13px}
+.flags button.on{background:var(--ink);color:var(--card);font-weight:700}
+.group{background:var(--card);border-radius:22px;overflow:hidden}
+.ghead{width:100%;border:0;background:transparent;padding:16px 18px;display:flex;align-items:center;gap:12px;text-align:left;min-height:64px}
+.ghead .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ghead .t b{font-size:15px}
+.ghead .t b span{font-size:12px;font-weight:400;color:var(--muted)}
+.ghead .t small{font-size:12px;color:var(--muted)}
+.ghead .arw{width:16px;text-align:center;color:var(--faint);font-size:17px;flex:none}
+.gbody{border-top:1px dashed var(--line);padding:2px 0 6px}
+.gbody .item{border-radius:0;padding:12px 18px;border-bottom:1px solid var(--bg);background:transparent}
+.gbody .item:last-child{border-bottom:0}
+
+/* bottom bar */
+.dock{position:sticky;bottom:0;z-index:4;padding:10px 12px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(to bottom,rgba(243,238,231,0),var(--bg) 32%)}
+.dock .pill{background:var(--card);border-radius:999px;padding:6px 6px 6px 22px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(122,92,67,.18)}
+.dock .sub{display:flex;flex-direction:column;flex:none}
+.dock .sub span{font-size:11px;color:var(--muted)}
+.dock .sub b{font-size:17px}
+.primary{flex:1;height:52px;border:0;border-radius:999px;background:var(--brand);color:var(--card);font-size:15px;font-weight:700}
+.primary:disabled{opacity:.5}
+.dock.right{display:flex;justify-content:flex-end;pointer-events:none;background:none}
+.dock.right .primary{flex:none;padding:0 24px;pointer-events:auto;box-shadow:0 8px 24px rgba(122,92,67,.28)}
+.ghost{height:44px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--brand);font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+
+/* sheets */
+dialog{border:0;padding:0;margin:auto auto 0;width:100%;max-width:520px;max-height:92dvh;background:var(--card);color:var(--ink);border-radius:26px 26px 0 0}
+dialog::backdrop{background:rgba(59,54,49,.38)}
+.sheet{padding:10px 18px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:18px}
+.grab{width:40px;height:5px;border-radius:99px;background:var(--soft);margin:0 auto}
+.sheet h2{margin:0;font-size:18px}
+.sheet .btns{display:flex;gap:10px}
+.danger{height:52px;padding:0 18px;border:0;border-radius:999px;background:var(--bad-bg);color:var(--bad);font-weight:700;font-size:14px}
+.danger.armed{background:var(--bad);color:#fff}
+.note{font-size:12px;color:var(--muted);line-height:1.7;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--card);font-size:13px;padding:10px 18px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none;z-index:50;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brandrow">
+      <div class="brand">
+        <div class="logo">KR</div>
+        <div><h1 id="title">代購報價</h1><small id="tripline"></small></div>
+      </div>
+      <button class="iconbtn" id="openSettings" aria-label="設定">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A5C43" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+      </button>
+    </div>
+    <div class="seg" role="tablist">
+      <button id="tabQuote" class="on" role="tab">報價</button>
+      <button id="tabQuery" role="tab">查詢</button>
+    </div>
+    <div class="sync" id="sync"></div>
+  </header>
+
+  <main>
+    <!-- 報價 -->
+    <section class="view" id="viewQuote">
+      <div class="hero">
+        <div class="row"><span>回本進度</span><b id="heroText">—</b></div>
+        <div class="bar"><i id="heroBar"></i></div>
+      </div>
+
+      <form class="card" id="form" autocomplete="off">
+        <div class="lbl">選擇分類
+          <div class="cats" id="cats"></div>
+          <span class="rule" id="rule"></span>
+        </div>
+        <label class="lbl">品名
+          <input class="in" id="fName" placeholder="例如：Torriden 玻尿酸精華 50ml" required>
+        </label>
+        <div class="grid2">
+          <label class="lbl">成本
+            <input class="in num" id="fCost" inputmode="decimal" placeholder="0">
+          </label>
+          <label class="lbl">報價
+            <input class="in num" id="fQuote" inputmode="decimal" placeholder="0">
+          </label>
+        </div>
+        <div class="hint" id="hint"></div>
+        <div class="qtyrow">
+          <span class="lbl">數量</span>
+          <div class="stepper">
+            <button type="button" id="qMinus" aria-label="減少">−</button>
+            <input id="fQty" inputmode="numeric" value="1" aria-label="數量">
+            <button type="button" id="qPlus" aria-label="增加">+</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="sechead"><b>最近新增</b><span id="recentCount"></span></div>
+      <div id="recent" class="view" style="gap:10px"></div>
+    </section>
+
+    <!-- 查詢 -->
+    <section class="view" id="viewQuery" hidden>
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A99C8E" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input class="in" id="q" type="search" placeholder="搜尋品名、分類或填寫人">
+      </div>
+      <div class="hero">
+        <div class="stats">
+          <div><span>件數</span><b id="sQty">0</b></div>
+          <div><span>營收</span><b id="sRev">NT$0</b></div>
+          <div><span>毛利</span><b id="sGross">NT$0</b></div>
+        </div>
+        <div class="row"><span id="costLine">回本進度</span><b id="sPct">0%</b></div>
+        <div class="bar"><i id="sBar"></i></div>
+      </div>
+      <div class="flags" id="flags"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <button class="ghost" id="toggleAll" type="button">全部展開</button>
+        <button class="ghost" id="exportX" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A5C43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10l5 5 5-5"></path><path d="M5 20h14"></path></svg>匯出 Excel
+        </button>
+      </div>
+      <div id="groups" class="view" style="gap:12px"></div>
+      <div style="height:80px"></div>
+    </section>
+  </main>
+
+  <div class="dock" id="dockQuote">
+    <div class="pill">
+      <div class="sub"><span>小計</span><b id="subtotal">NT$0</b></div>
+      <button class="primary" id="addBtn" type="button">加入紀錄</button>
+    </div>
+  </div>
+  <div class="dock right" id="dockQuery" hidden>
+    <button class="primary" id="goQuote" type="button">＋ 新增報價</button>
+  </div>
+</div>
+
+<!-- 編輯 -->
+<dialog id="editDlg">
+  <form class="sheet" method="dialog" id="editForm">
+    <div class="grab"></div>
+    <h2>編輯紀錄</h2>
+    <div class="lbl">分類<div class="cats" id="eCats"></div></div>
+    <label class="lbl">品名<input class="in" id="eName" required></label>
+    <div class="grid2">
+      <label class="lbl">成本<input class="in num" id="eCost" inputmode="decimal"></label>
+      <label class="lbl">報價<input class="in num" id="eQuote" inputmode="decimal"></label>
+    </div>
+    <div class="hint" id="eHint"></div>
+    <div class="qtyrow">
+      <span class="lbl">數量</span>
+      <div class="stepper">
+        <button type="button" id="eMinus" aria-label="減少">−</button>
+        <input id="eQty" inputmode="numeric" aria-label="數量">
+        <button type="button" id="ePlus" aria-label="增加">+</button>
+      </div>
+    </div>
+    <div class="btns">
+      <button type="button" class="danger" id="eDel">刪除</button>
+      <button type="button" class="ghost" id="eCancel" style="height:52px">取消</button>
+      <button type="button" class="primary" id="eSave">儲存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 設定 -->
+<dialog id="setDlg">
+  <form class="sheet" method="dialog" id="setForm">
+    <div class="grab"></div>
+    <h2>連線設定</h2>
+    <label class="lbl">Apps Script 網址<input class="in" id="sUrl" placeholder="https://script.google.com/macros/s/…/exec" inputmode="url"></label>
+    <label class="lbl">密碼<input class="in" id="sKey" type="password" placeholder="跟 Apps Script 裡的 KEY 一樣"></label>
+    <label class="lbl">你的名字（記錄是誰填的）<input class="in" id="sBy" placeholder="例如：小郭"></label>
+    <p class="note">這些設定只存在這支手機裡，不會出現在 GitHub 上。兩個人各自在手機上填一次即可。</p>
+    <p class="note" id="sheetLink"></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="sCancel" style="height:52px">取消</button>
+      <button type="button" class="primary" id="sSave">儲存並連線</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== 行程設定（要改直接改這裡） ===== */
+const TRIP = { name: '首爾', dates: '11/27 – 12/2', people: 2, cost: 50080 };
+const CATS = ['Olive Young','藥局醫美','韓系潮牌','專櫃精品','免稅商品','寢具居家','電器3C','食品零食','文創周邊','韓國大創','批發','其他小物'];
+// [每件最少毛利 NT$, 最低毛利率 %]
+const RULES = {
+  'Olive Young':[100,0], '藥局醫美':[100,0],
+  '韓系潮牌':[250,18], '專櫃精品':[250,18], '免稅商品':[250,18], '寢具居家':[250,18],
+  '電器3C':[250,15], '食品零食':[60,0], '韓國大創':[60,0],
+  '文創周邊':[100,25], '批發':[100,30], '其他小物':[100,20]
+};
+const REJECT_PCT = 10;
+const COMBO_ONLY = ['韓國大創','食品零食'];
+/* ===================================== */
+
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nt = n => 'NT$' + Math.round(n || 0).toLocaleString('en-US');
+const num = v => { const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0; };
+const today = () => { const d = new Date(); return (d.getMonth() + 1) + '/' + d.getDate(); };
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+
+let cfg = LS.get('kq_cfg', { url: '', key: '', by: '' });
+let items = LS.get('kq_items', []);          // 已同步的資料（快取）
+let pending = LS.get('kq_pending', []);      // 尚未送出的動作 [{action,item}]
+let sheetUrl = LS.get('kq_sheet', '');
+let state = { cat: LS.get('kq_cat', 'Olive Young'), flag: 'all', open: {}, allOpen: false };
+
+/* ---------- 規則 ---------- */
+function ruleOf(cat){ return RULES[cat] || [100, 0]; }
+function floorPrice(cat, cost){
+  const [min, pct] = ruleOf(cat);
+  return Math.ceil(Math.max(cost + min, pct ? cost / (1 - pct / 100) : 0) / 5) * 5;
+}
+function check(cat, cost, quote){
+  const floor = floorPrice(cat, cost);
+  const m = quote ? (quote - cost) / quote * 100 : 0;
+  const level = !cost && !quote ? 'none' : !quote ? 'info' : (m < REJECT_PCT ? 'bad' : quote < floor ? 'warn' : 'ok');
+  return { floor, m, level };
+}
+function hintHtml(cat, cost, quote){
+  const k = check(cat, cost, quote);
+  let h = '';
+  if (k.level === 'none') h = `<p class="info">輸入成本後，會提醒建議底價</p>`;
+  if (k.level === 'info') h = `<p class="info">建議底價 ${nt(k.floor)}</p>`;
+  if (k.level === 'ok') h = `<p class="ok">符合規則 · 每件毛利 ${nt(quote - cost)}（${k.m.toFixed(1)}%）</p>`;
+  if (k.level === 'warn') h = `<p class="warn">低於底線 · 建議至少報 ${nt(k.floor)}，目前毛利 ${k.m.toFixed(1)}%</p>`;
+  if (k.level === 'bad') h = `<p class="bad">毛利率 ${k.m.toFixed(1)}% 低於 ${REJECT_PCT}%，建議不接</p>`;
+  if (COMBO_ONLY.includes(cat)) h += `<p class="extra">此分類不單獨接單，需搭配其他商品</p>`;
+  return h;
+}
+function ruleText(cat){
+  const [min, pct] = ruleOf(cat);
+  return `規則：每件至少賺 ${nt(min)}` + (pct ? ` · 毛利率至少 ${pct}%` : '') + ` · 低於 ${REJECT_PCT}% 不接`;
+}
+function flagOf(it){
+  const k = check(it.cat, it.cost, it.quote);
+  if (k.level === 'bad') return { level: 'bad', text: `毛利率 ${k.m.toFixed(1)}%，建議不接` };
+  if (k.level === 'warn') return { level: 'warn', text: `低於底線 · 底價 ${nt(k.floor)}` };
+  return { level: k.level === 'info' ? 'info' : 'ok', text: '' };
+}
+
+/* ---------- 資料 ---------- */
+function allItems(){
+  // 已同步資料 + 尚未送出的變更
+  let list = items.slice();
+  pending.forEach(p => {
+    if (p.action === 'add') { if (!list.some(x => x.id === p.item.id)) list.push(Object.assign({ _pend: true }, p.item)); }
+    if (p.action === 'update') list = list.map(x => x.id === p.item.id ? Object.assign({ _pend: true }, p.item) : x);
+    if (p.action === 'delete') list = list.filter(x => x.id !== p.item.id);
+  });
+  return list;
+}
+function totals(list){
+  let rev = 0, gross = 0, qty = 0;
+  list.forEach(x => { rev += x.quote * x.qty; gross += (x.quote - x.cost) * x.qty; qty += x.qty; });
+  return { rev, gross, qty, pct: Math.max(0, Math.min(100, gross / TRIP.cost * 100)) };
+}
+
+/* ---------- 連線 ---------- */
+function setSync(text, err){ const s = $('sync'); s.textContent = text; s.classList.toggle('err', !!err); }
+async function api(method, body){
+  if (!cfg.url) throw new Error('尚未設定連線');
+  let res;
+  if (method === 'GET') res = await fetch(cfg.url + (cfg.url.includes('?') ? '&' : '?') + 'action=list&key=' + encodeURIComponent(cfg.key), { redirect: 'follow' });
+  else res = await fetch(cfg.url, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: cfg.key }, body)) });
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error || '連線失敗');
+  return j;
+}
+let syncing = false;
+async function sync(){
+  if (!cfg.url) { setSync('尚未連線到 Google 試算表 · 點右上角設定', true); return; }
+  if (syncing) return;
+  syncing = true;
+  try {
+    while (pending.length) {
+      setSync(`同步中… 剩 ${pending.length} 筆`);
+      const p = pending[0];
+      try { await api('POST', p); }
+      catch (e) { if (!/找不到這筆/.test(e.message)) throw e; }
+      pending.shift(); LS.set('kq_pending', pending);
+    }
+    const j = await api('GET');
+    items = j.items || []; LS.set('kq_items', items);
+    if (j.sheetUrl) { sheetUrl = j.sheetUrl; LS.set('kq_sheet', sheetUrl); }
+    const t = new Date();
+    setSync(`已同步 · ${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`);
+  } catch (e) {
+    setSync((pending.length ? `${pending.length} 筆尚未上傳 · ` : '') + (e.message === 'Failed to fetch' ? '網路不穩，稍後自動重試' : e.message), true);
+  } finally {
+    syncing = false;
+    render();
+  }
+}
+function queue(action, item){
+  pending.push({ action, item }); LS.set('kq_pending', pending);
+  render(); sync();
+}
+
+/* ---------- 畫面 ---------- */
+function catButtons(el, current, onPick){
+  el.innerHTML = CATS.map(c => `<button type="button" class="${c === current ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('button'); if (b) onPick(b.dataset.c); };
+}
+function itemHtml(it, showCat){
+  const f = flagOf(it);
+  const meta = [showCat ? it.cat : it.date, '成本 ' + nt(it.cost), '×' + it.qty].concat(it.by ? [it.by] : []).join(' · ');
+  return `<button type="button" class="item" data-id="${esc(it.id)}">
+    <span class="l"><b>${esc(it.name)}</b><small>${esc(meta)}</small>
+      ${f.level === 'warn' || f.level === 'bad' ? `<span class="tag ${f.level}">${esc(f.text)}</span>` : ''}
+      ${it._pend ? `<span class="tag pend">尚未上傳</span>` : ''}</span>
+    <span class="r"><b>${nt(it.quote)}</b><small>毛利 ${nt((it.quote - it.cost) * it.qty)}</small></span>
+  </button>`;
+}
+function renderForm(){
+  catButtons($('cats'), state.cat, c => { state.cat = c; LS.set('kq_cat', c); renderForm(); });
+  $('rule').textContent = ruleText(state.cat);
+  const cost = num($('fCost').value), quote = num($('fQuote').value), qty = Math.max(1, num($('fQty').value) || 1);
+  $('hint').innerHTML = hintHtml(state.cat, cost, quote);
+  $('subtotal').textContent = nt(quote * qty);
+}
+function render(){
+  const list = allItems();
+  const t = totals(list);
+  $('tripline').textContent = `${TRIP.name} · ${TRIP.dates} · ${TRIP.people} 人`;
+  $('heroText').textContent = `${nt(t.gross)} / ${nt(TRIP.cost)}`;
+  $('heroBar').style.width = t.pct.toFixed(1) + '%';
+  renderForm();
+
+  const recent = list.slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 5);
+  $('recentCount').textContent = `共 ${list.length} 筆`;
+  $('recent').innerHTML = recent.length ? recent.map(x => itemHtml(x, true)).join('') : `<div class="empty">還沒有紀錄<br>填好上面的報價，按「加入紀錄」</div>`;
+
+  // 查詢
+  const q = $('q').value.trim().toLowerCase();
+  const filtering = !!q || state.flag !== 'all';
+  const shown = list.filter(x => {
+    if (state.flag !== 'all' && flagOf(x).level !== state.flag) return false;
+    return !q || [x.name, x.cat, x.by].join(' ').toLowerCase().includes(q);
+  });
+  const st = totals(shown);
+  $('sQty').textContent = st.qty.toLocaleString('en-US');
+  $('sRev').textContent = nt(st.rev);
+  $('sGross').textContent = nt(st.gross);
+  $('costLine').textContent = filtering ? '篩選結果毛利 / 旅程成本' : `回本進度（旅程成本 ${nt(TRIP.cost)}）`;
+  $('sPct').textContent = Math.round(st.pct) + '%';
+  $('sBar').style.width = st.pct.toFixed(1) + '%';
+  $('flags').innerHTML = [['all','全部'],['warn','低於底線'],['bad','建議不接']].map(([k, l]) => `<button type="button" class="${state.flag === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('');
+  $('toggleAll').textContent = state.allOpen ? '全部收合' : '全部展開';
+
+  const cats = CATS.concat([...new Set(shown.map(x => x.cat))].filter(c => !CATS.includes(c)));
+  const groups = cats.map(cat => {
+    const g = shown.filter(x => x.cat === cat);
+    if (!g.length) return '';
+    const gt = totals(g);
+    const flagN = g.filter(x => ['warn','bad'].includes(flagOf(x).level)).length;
+    const open = filtering || state.allOpen || state.open[cat];
+    g.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    return `<div class="group">
+      <button type="button" class="ghead" data-g="${esc(cat)}">
+        <span class="t"><b>${esc(cat)} <span>· ${g.length} 項 / ${gt.qty} 件</span></b>
+        <small>營收 ${nt(gt.rev)} · 毛利 ${nt(gt.gross)}（${gt.rev ? (gt.gross / gt.rev * 100).toFixed(1) : '0.0'}%）</small></span>
+        ${flagN ? `<span class="tag warn" style="align-self:center;font-weight:700">${flagN} 需注意</span>` : ''}
+        <span class="arw">${open ? '−' : '+'}</span>
+      </button>
+      ${open ? `<div class="gbody">${g.map(x => itemHtml(x, false)).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+  $('groups').innerHTML = groups || `<div class="empty">${list.length ? '找不到符合的商品' : '還沒有紀錄'}</div>`;
+}
+
+/* ---------- 事件：報價 ---------- */
+['fCost','fQuote','fQty'].forEach(id => $(id).addEventListener('input', renderForm));
+$('qMinus').onclick = () => { $('fQty').value = Math.max(1, (num($('fQty').value) || 1) - 1); renderForm(); };
+$('qPlus').onclick = () => { $('fQty').value = (num($('fQty').value) || 0) + 1; renderForm(); };
+$('form').addEventListener('submit', e => { e.preventDefault(); add(); });
+$('addBtn').onclick = add;
+function add(){
+  const name = $('fName').value.trim();
+  const cost = num($('fCost').value), quote = num($('fQuote').value), qty = Math.max(1, Math.round(num($('fQty').value) || 1));
+  if (!name) { toast('請先填品名'); $('fName').focus(); return; }
+  if (!quote) { toast('請先填報價'); $('fQuote').focus(); return; }
+  const item = { id: uid(), date: today(), cat: state.cat, name, cost, quote, qty, by: cfg.by || '', createdAt: new Date().toISOString() };
+  queue('add', item);
+  $('fName').value = ''; $('fCost').value = ''; $('fQuote').value = ''; $('fQty').value = 1;
+  renderForm();
+  toast(cfg.url ? '已加入紀錄' : '已暫存在手機，連線後會自動上傳');
+}
+
+/* ---------- 事件：查詢 ---------- */
+function show(view){
+  const isQ = view === 'query';
+  $('viewQuote').hidden = isQ; $('viewQuery').hidden = !isQ;
+  $('dockQuote').hidden = isQ; $('dockQuery').hidden = !isQ;
+  $('tabQuote').classList.toggle('on', !isQ); $('tabQuery').classList.toggle('on', isQ);
+  $('title').textContent = isQ ? '查詢紀錄' : '代購報價';
+  window.scrollTo(0, 0);
+}
+$('tabQuote').onclick = () => show('quote');
+$('tabQuery').onclick = () => { show('query'); sync(); };
+$('goQuote').onclick = () => show('quote');
+$('q').addEventListener('input', render);
+$('flags').onclick = e => { const b = e.target.closest('button'); if (b) { state.flag = b.dataset.f; render(); } };
+$('toggleAll').onclick = () => { state.allOpen = !state.allOpen; state.open = {}; render(); };
+$('groups').addEventListener('click', e => {
+  const h = e.target.closest('.ghead');
+  if (h) { const c = h.dataset.g; state.open[c] = !(state.allOpen || state.open[c]); if (state.allOpen) { state.allOpen = false; CATS.forEach(x => { if (x !== c) state.open[x] = true; }); } render(); return; }
+  const it = e.target.closest('.item'); if (it) openEdit(it.dataset.id);
+});
+$('recent').addEventListener('click', e => { const it = e.target.closest('.item'); if (it) openEdit(it.dataset.id); });
+
+/* ---------- 編輯 ---------- */
+let editing = null;
+function renderEdit(){
+  catButtons($('eCats'), editing.cat, c => { editing.cat = c; renderEdit(); });
+  $('eHint').innerHTML = hintHtml(editing.cat, num($('eCost').value), num($('eQuote').value));
+}
+function openEdit(id){
+  const it = allItems().find(x => x.id === id); if (!it) return;
+  editing = Object.assign({}, it); delete editing._pend;
+  $('eName').value = it.name; $('eCost').value = it.cost; $('eQuote').value = it.quote; $('eQty').value = it.qty;
+  $('eDel').classList.remove('armed'); $('eDel').textContent = '刪除';
+  renderEdit(); $('editDlg').showModal();
+}
+['eCost','eQuote'].forEach(id => $(id).addEventListener('input', renderEdit));
+$('eMinus').onclick = () => { $('eQty').value = Math.max(1, (num($('eQty').value) || 1) - 1); };
+$('ePlus').onclick = () => { $('eQty').value = (num($('eQty').value) || 0) + 1; };
+$('eCancel').onclick = () => $('editDlg').close();
+$('eSave').onclick = () => {
+  const name = $('eName').value.trim(); if (!name) { toast('品名不能空白'); return; }
+  Object.assign(editing, { name, cost: num($('eCost').value), quote: num($('eQuote').value), qty: Math.max(1, Math.round(num($('eQty').value) || 1)) });
+  queue('update', editing); $('editDlg').close(); toast('已更新');
+};
+$('eDel').onclick = () => {
+  const b = $('eDel');
+  if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = '確定刪除？'; return; }
+  queue('delete', { id: editing.id }); $('editDlg').close(); toast('已刪除');
+};
+
+/* ---------- 設定 ---------- */
+function openSettings(){
+  $('sUrl').value = cfg.url; $('sKey').value = cfg.key; $('sBy').value = cfg.by;
+  $('sheetLink').innerHTML = sheetUrl ? `原始資料：<a href="${esc(sheetUrl)}" target="_blank" rel="noopener" style="color:#7A5C43">開啟 Google 試算表</a>` : '';
+  $('setDlg').showModal();
+}
+$('openSettings').onclick = openSettings;
+$('sCancel').onclick = () => $('setDlg').close();
+$('sSave').onclick = () => {
+  cfg = { url: $('sUrl').value.trim(), key: $('sKey').value, by: $('sBy').value.trim() };
+  LS.set('kq_cfg', cfg); $('setDlg').close(); sync();
+};
+[$('editDlg'), $('setDlg')].forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+
+/* ---------- 匯出 Excel ---------- */
+$('exportX').onclick = () => {
+  if (!window.XLSX) { toast('Excel 元件還在載入，請再按一次'); return; }
+  const list = allItems().slice().sort((a, b) => CATS.indexOf(a.cat) - CATS.indexOf(b.cat) || String(a.createdAt).localeCompare(String(b.createdAt)));
+  const rows = list.map(x => {
+    const f = flagOf(x);
+    return { 日期: x.date, 分類: x.cat, 品名: x.name, 成本: x.cost, 報價: x.quote, 數量: x.qty,
+      營收: x.quote * x.qty, 毛利: (x.quote - x.cost) * x.qty, 毛利率: x.quote ? +((x.quote - x.cost) / x.quote * 100).toFixed(1) : 0,
+      提醒: f.text, 填寫人: x.by || '' };
+  });
+  const sum = CATS.map(c => { const g = list.filter(x => x.cat === c); if (!g.length) return null; const t = totals(g);
+    return { 分類: c, 品項: g.length, 件數: t.qty, 營收: t.rev, 毛利: t.gross, 毛利率: t.rev ? +(t.gross / t.rev * 100).toFixed(1) : 0 }; }).filter(Boolean);
+  const all = totals(list);
+  sum.push({ 分類: '合計', 品項: list.length, 件數: all.qty, 營收: all.rev, 毛利: all.gross, 毛利率: all.rev ? +(all.gross / all.rev * 100).toFixed(1) : 0 });
+  sum.push({}); sum.push({ 分類: '旅程成本', 營收: TRIP.cost }); sum.push({ 分類: '扣除成本後淨利', 營收: all.gross - TRIP.cost });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), '紀錄');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sum), '分類統計');
+  const d = new Date();
+  XLSX.writeFile(wb, `韓國代購紀錄_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.xlsx`);
+};
+
+/* ---------- 其他 ---------- */
+let tt;
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('show'), 1800); }
+window.addEventListener('online', sync);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+setInterval(() => { if (!document.hidden) sync(); }, 60000);
+
+render();
+sync();
+if (!cfg.url) setTimeout(openSettings, 400);
+</script>
+</body>
+</html>
